@@ -6,15 +6,17 @@
 #include <HardwareSerial.h>
 #include <Wire.h>
 
+#include "actuators/servo.h"
 #include "sensors/GP2Y0A21YK.h"
 #include "sensors/MPU6050.h"
 #include "util/ADC.h"
+#include "util/timer.h"
 
 #define GP2Y0A21YK_ADC_CHANNEL 0
 
 MPU6050_Struct IMU;
 
-int pos = 0;
+uint64_t counter = 0;
 
 void setup() {
   Serial.begin(115200); // Initialize serial communication
@@ -24,42 +26,14 @@ void setup() {
   Serial.flush();
 
   ADC_setup();
+  timer1_setup();
 
   Wire.begin(); // Start the I2C communication
 
   MPU6050_WakeUpMPU(); // Send wake bit to IMU
-  MPU6050_SetAccelerationSensitivity();
-  MPU6050_SetGyroSensitivity();
+  MPU6050_SetAccelerationSensitivity(&IMU, MPU6050_ACCELEROMETER_RANGE_4G);
+  MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_500);
 
-#pragma region timer0
-
-  // // Set as output
-  // DDRD = ((1 << PD6) | (1 << PD5));
-
-  // // Fast PMW, Non inverting output, 64 Prescaler
-  // TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00);
-  // TCCR0B |= (1 << CS02) | (1 << CS00);
-
-  // OCR0A = 30;
-  // OCR0B = 0;
-
-#pragma endregion timer0
-
-// Setup timer1 region
-#pragma region timer1
-  // // Set output
-  // DDRB = ((1 << PB2) | (1 << PB1));
-
-  // // Fast PMW, Non inverting output, 64 Prescaler
-  // TCCR1A |= (1 << COM1A1) | (1 << COM1B1);
-  // TCCR1B |= (1 << WGM13 | (1 << CS11) | (1 << CS10));
-
-  // ICR1 = 2500; // Max value of the counter before reset
-
-  // OCR1A = 150; // Servo angle
-  // OCR1B = 0;   // Output unsued
-
-#pragma endregion timer1
 
   Serial.println("Start of Loop");
   Serial.flush();
@@ -67,30 +41,56 @@ void setup() {
 
 void loop() {
 
+  counter++;
+
   double dist = GP2Y0A21YK_GetDistance(GP2Y0A21YK_ADC_CHANNEL);
 
-  MPU6050_ReadAcceleromterData(&IMU);
-  MPU6050_ReadGyroscopeData(&IMU);
+  MPU6050_ALL(&IMU);
 
-  Serial.print(" Accel_X: ");
-  Serial.print(IMU.acceleration_X);
-  Serial.print(" Accel_Y: ");
-  Serial.print(IMU.acceleration_Y);
-  Serial.print(" Accel_Z: ");
-  Serial.print(IMU.acceleration_Z);
+  if (counter % 1000 == 0) {
+    Serial.print(" Accel_X: ");
+    Serial.print(IMU.acceleration_X);
+    Serial.print(" Accel_Y: ");
+    Serial.print(IMU.acceleration_Y);
+    Serial.print(" Accel_Z: ");
+    Serial.print(IMU.acceleration_Z);
 
-  Serial.print(" Gyro_X: ");
-  Serial.print(IMU.gyroscope_X);
-  Serial.print(" Gyro_Y: ");
-  Serial.print(IMU.gyroscope_Y);
-  Serial.print(" Gyro_Z: ");
-  Serial.print(IMU.gyroscope_Z);
+    Serial.print(" Gyro_X: ");
+    Serial.print(IMU.gyroscope_X);
+    Serial.print(" Gyro_Y: ");
+    Serial.print(IMU.gyroscope_Y);
+    Serial.print(" Gyro_Z: ");
+    Serial.print(IMU.gyroscope_Z);
+    
+    Serial.print(" Velocity_X: ");
+    Serial.print(IMU.velocity_X);
+    Serial.print(" Velocity_Y: ");
+    Serial.print(IMU.velocity_Y);
+    Serial.print(" Velocity_Z: ");
+    Serial.print(IMU.velocity_Z);
 
-  Serial.print(" Distance: ");
-  Serial.println(dist, 2);
-  Serial.flush();
+    Serial.print(" Position_X: ");
+    Serial.print(IMU.position_X);
+    Serial.print(" Position_Y: ");
+    Serial.print(IMU.position_Y);
+    Serial.print(" Position_Z: ");
+    Serial.print(IMU.position_Z);
 
-  _delay_ms(500);
+    Serial.print(" Pitch: ");
+    Serial.print(IMU.pitch);
+    Serial.print(" Roll: ");
+    Serial.print(IMU.roll);
+    Serial.print(" Yaw: ");
+    Serial.print(IMU.yaw);
+
+
+
+    Serial.print(" Distance: ");
+    Serial.println(dist, 2);
+    Serial.flush();
+  }
+
+  _delay_ms(10);
 }
 
 // int main(void) {
