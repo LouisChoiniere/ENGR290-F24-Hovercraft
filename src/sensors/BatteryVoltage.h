@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-float GP2Y0A21YK_GetDistance(uint8_t channel);
+float BatteryVoltage_GetVoltage(uint8_t channel);
 
 #ifdef __cplusplus
 }

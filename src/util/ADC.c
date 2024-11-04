@@ -4,7 +4,8 @@
 
 void ADC_setup() {
 
-  ADMUX |= (0 << REFS1) | (0 << REFS0); // Analog ref external
+  // ADMUX &= ~((1 << REFS1) | (1 << REFS0)); // Clear REFS1 and REFS0 bits
+  ADMUX |= (0 << REFS1) | (0 << REFS0);    // Analog ref external
 
   ADCSRA |= (1 << ADEN);                                // Enable the ADC
   ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // 128 prescaler
@@ -19,4 +20,8 @@ uint16_t ADC_read(uint8_t channel) {
     ;
 
   return ADC;
+}
+
+float ADC_read_voltage(uint8_t channel) {
+  return (float)ADC_read(channel) / 1024.0 * VREF;
 }

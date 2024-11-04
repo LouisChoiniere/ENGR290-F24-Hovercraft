@@ -10,6 +10,7 @@ extern "C" {
 
 void ADC_setup();
 uint16_t ADC_read(uint8_t channel);
+float ADC_read_voltage(uint8_t channel);
 
 #ifdef __cplusplus
 }
