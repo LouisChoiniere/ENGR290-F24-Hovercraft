@@ -10,7 +10,10 @@
 #include "sensors/GP2Y0A21YK.h"
 #include "sensors/MPU6050.h"
 #include "util/ADC.h"
+#include "util/BatteryVoltage.h"
 #include "util/timer.h"
+
+#define ENABLE_BATTERY_CHECK 0
 
 #define GP2Y0A21YK_ADC_CHANNEL 0
 
@@ -23,11 +26,12 @@ void setup() {
   while (!Serial)
     _delay_ms(10);
 
-  Serial.println("Start of program");
+  Serial.println("Setup");
   Serial.flush();
 
   // ADC and set channels for GP2Y0A21YK
   ADC_setup();
+  ADC_setup_channel(BATTERY_VOLTAGE_ADC_CHANNEL);
   ADC_setup_channel(GP2Y0A21YK_ADC_CHANNEL);
 
   // Setup timers
@@ -41,15 +45,28 @@ void setup() {
   MPU6050_SetFilter(MPU6050_FILTER_BW_20);
   MPU6050_Calibrate(&IMU, 5000);
 
-  Serial.println("Start of Loop");
+  Serial.println("Start prechecks");
   Serial.flush();
+
+  // Batteries are almost empty do not start execution
+  if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() <= 1) {
+    while (true)
+      ;
+  }
 
   _delay_ms(100);
 }
 
 void loop() {
-
   counter++;
+
+  // Batteries are empty stop execution immediately
+  if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() == 0) {
+    // TODO: Add code to stop the fans
+
+    while (true)
+      ;
+  }
 
   double dist = GP2Y0A21YK_GetDistance(GP2Y0A21YK_ADC_CHANNEL);
 

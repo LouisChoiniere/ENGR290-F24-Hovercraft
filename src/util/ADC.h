@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#define VREF 3.4
+#define VREF 3.8
 
 #ifdef __cplusplus
 extern "C" {
