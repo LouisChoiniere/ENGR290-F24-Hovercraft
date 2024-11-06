@@ -9,6 +9,8 @@ extern "C" {
 #endif
 
 void ADC_setup();
+void ADC_setup_channel(uint8_t channel);
+
 uint16_t ADC_read(uint8_t channel);
 float ADC_read_voltage(uint8_t channel);
 

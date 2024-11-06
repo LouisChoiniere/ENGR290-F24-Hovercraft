@@ -26,16 +26,19 @@ void setup() {
   Serial.println("Start of program");
   Serial.flush();
 
+  // ADC and set channels for GP2Y0A21YK
   ADC_setup();
+  ADC_setup_channel(GP2Y0A21YK_ADC_CHANNEL);
+
+  // Setup timers
   timer1_setup();
 
+  // I2C setup and setup MPU6050
   Wire.begin();
-
   MPU6050_WakeUpMPU();
   MPU6050_SetAccelerationSensitivity(&IMU, MPU6050_ACCELEROMETER_RANGE_4G);
   MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_1000);
   MPU6050_SetFilter(MPU6050_FILTER_BW_20);
-
   MPU6050_Calibrate(&IMU, 5000);
 
   Serial.println("Start of Loop");
@@ -92,8 +95,8 @@ void loop() {
     Serial.print("\tYaw: ");
     Serial.print(IMU.yaw);
 
-    // Serial.print("\tDistance: ");
-    // Serial.println(dist, 2);
+    Serial.print("\tDistance: ");
+    Serial.println(dist, 2);
     Serial.println();
     Serial.flush();
   }
