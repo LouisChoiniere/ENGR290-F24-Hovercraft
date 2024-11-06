@@ -22,18 +22,18 @@ void setup() {
   Serial.begin(115200); // Initialize serial communication
   while (!Serial)
     _delay_ms(10);
-  
+
   Serial.println("Start of program");
   Serial.flush();
 
   ADC_setup();
   timer1_setup();
 
-  Wire.begin(); // Start the I2C communication
+  Wire.begin();
 
-  MPU6050_WakeUpMPU(); // Send wake bit to IMU
+  MPU6050_WakeUpMPU();
   MPU6050_SetAccelerationSensitivity(&IMU, MPU6050_ACCELEROMETER_RANGE_4G);
-  MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_500);
+  MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_1000);
   MPU6050_SetFilter(MPU6050_FILTER_BW_20);
 
   MPU6050_Calibrate(&IMU, 5000);
@@ -68,34 +68,33 @@ void loop() {
     Serial.print(", ");
     Serial.print(IMU.gyroscope_Z);
     Serial.print(")");
-    
-    Serial.print("\tVelocity (X, Y, Z): (");
-    Serial.print(IMU.velocity_X);
-    Serial.print(", ");
-    Serial.print(IMU.velocity_Y);
-    Serial.print(", ");
-    Serial.print(IMU.velocity_Z);
-    Serial.print(")");
 
-    Serial.print("\tPosition (X, Y, Z): (");
-    Serial.print(IMU.position_X);
-    Serial.print(", ");
-    Serial.print(IMU.position_Y);
-    Serial.print(", ");
-    Serial.print(IMU.position_Z);
-    Serial.print(")");
+    // Serial.print("\tVelocity (X, Y, Z): (");
+    // Serial.print(IMU.velocity_X);
+    // Serial.print(", ");
+    // Serial.print(IMU.velocity_Y);
+    // Serial.print(", ");
+    // Serial.print(IMU.velocity_Z);
+    // Serial.print(")");
 
-    // Serial.print(" Pitch: ");
-    // Serial.print(IMU.pitch);
-    // Serial.print(" Roll: ");
-    // Serial.print(IMU.roll);
-    // Serial.print(" Yaw: ");
-    // Serial.print(IMU.yaw);
+    // Serial.print("\tPosition (X, Y, Z): (");
+    // Serial.print(IMU.position_X);
+    // Serial.print(", ");
+    // Serial.print(IMU.position_Y);
+    // Serial.print(", ");
+    // Serial.print(IMU.position_Z);
+    // Serial.print(")");
 
+    Serial.print("\tRoll: ");
+    Serial.print(IMU.roll);
+    Serial.print("\tPitch: ");
+    Serial.print(IMU.pitch);
+    Serial.print("\tYaw: ");
+    Serial.print(IMU.yaw);
 
-
-    Serial.print("\tDistance: ");
-    Serial.println(dist, 2);
+    // Serial.print("\tDistance: ");
+    // Serial.println(dist, 2);
+    Serial.println();
     Serial.flush();
   }
 

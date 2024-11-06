@@ -39,6 +39,11 @@
 
 #define GRAVITY 9.81
 
+// typedef struct {
+//   float X, Y, Z;
+// } float_vector;
+
+
 typedef struct {
   uint16_t acceleration_division_factor;
   uint16_t gyroscope_division_factor;
@@ -61,17 +66,17 @@ typedef struct {
   float gyroscope_Y;
   float gyroscope_Z;
 
-  float velocity_X = 0;
-  float velocity_Y = 0;
-  float velocity_Z = 0;
+  // float velocity_X = 0;
+  // float velocity_Y = 0;
+  // float velocity_Z = 0;
 
-  float position_X = 0;
-  float position_Y = 0;
-  float position_Z = 0;
+  // float position_X = 0;
+  // float position_Y = 0;
+  // float position_Z = 0;
 
-  double roll = 0;
-  double pitch = 0;
-  double yaw = 0;
+  float roll = 0;
+  float pitch = 0;
+  float yaw = 0;
 
   uint64_t last_time;
 } MPU6050_Struct;
@@ -149,13 +154,13 @@ void MPU6050_ReadAcceleromterData(MPU6050_Struct *MPU6050) {
   int16_t raw_accel_X = (Wire.read() << 8 | Wire.read());
   int16_t raw_accel_Y = (Wire.read() << 8 | Wire.read());
   int16_t raw_accel_Z = (Wire.read() << 8 | Wire.read());
+  
+  Wire.endTransmission(true);
 
   uint16_t division_factor = MPU6050->acceleration_division_factor;
   MPU6050->acceleration_X = ((float)raw_accel_X / division_factor) * 9.8 - MPU6050->calibration_acceleraton_X;
   MPU6050->acceleration_Y = ((float)raw_accel_Y / division_factor) * 9.8 - MPU6050->calibration_acceleraton_Y;
   MPU6050->acceleration_Z = ((float)raw_accel_Z / division_factor) * 9.8 - MPU6050->calibration_acceleraton_Z;
-
-  Wire.endTransmission(true);
 };
 
 void MPU6050_ReadGyroscopeData(MPU6050_Struct *MPU6050) {
@@ -164,16 +169,16 @@ void MPU6050_ReadGyroscopeData(MPU6050_Struct *MPU6050) {
   Wire.endTransmission(false);
   Wire.requestFrom(MPU6050_ADDR, 6, true);
 
-  uint16_t raw_gyro_X = (Wire.read() << 8 | Wire.read());
-  uint16_t raw_gyro_Y = (Wire.read() << 8 | Wire.read());
-  uint16_t raw_gyro_Z = (Wire.read() << 8 | Wire.read());
+  int16_t raw_gyro_X = (Wire.read() << 8 | Wire.read());
+  int16_t raw_gyro_Y = (Wire.read() << 8 | Wire.read());
+  int16_t raw_gyro_Z = (Wire.read() << 8 | Wire.read());
+  
+  Wire.endTransmission(true);
 
-  uint16_t division_factor = MPU6050->gyroscope_division_factor;
+  uint16_t division_factor = MPU6050->gyroscope_division_factor;  
   MPU6050->gyroscope_X = ((float)raw_gyro_X / division_factor) - MPU6050->calibration_gyroscope_X;
   MPU6050->gyroscope_Y = ((float)raw_gyro_Y / division_factor) - MPU6050->calibration_gyroscope_Y;
   MPU6050->gyroscope_Z = ((float)raw_gyro_Z / division_factor) - MPU6050->calibration_gyroscope_Z;
-
-  Wire.endTransmission(true);
 };
 
 void MPU6050_Calibrate(MPU6050_Struct *MPU6050, uint32_t time) {
@@ -216,16 +221,15 @@ void MPU6050_ALL(MPU6050_Struct *MPU6050) {
   float dt_seconds = dt / 1000.0;
   MPU6050->last_time = current_time;
 
-  MPU6050->velocity_X += MPU6050->acceleration_X * dt_seconds;
-  MPU6050->velocity_Y += MPU6050->acceleration_Y * dt_seconds;
-  MPU6050->velocity_Z += (MPU6050->acceleration_Z - GRAVITY) * dt_seconds;
+  // MPU6050->velocity_X += MPU6050->acceleration_X * dt_seconds;
+  // MPU6050->velocity_Y += MPU6050->acceleration_Y * dt_seconds;
+  // MPU6050->velocity_Z += (MPU6050->acceleration_Z - GRAVITY) * dt_seconds;
 
-  MPU6050->position_X += MPU6050->velocity_X * dt_seconds;
-  MPU6050->position_Y += MPU6050->velocity_Y * dt_seconds;
-  MPU6050->position_Z += MPU6050->velocity_Z * dt_seconds;
+  // MPU6050->position_X += MPU6050->velocity_X * dt_seconds;
+  // MPU6050->position_Y += MPU6050->velocity_Y * dt_seconds;
+  // MPU6050->position_Z += MPU6050->velocity_Z * dt_seconds;
 
-  // MPU6050->pitch = 0;
-  // MPU6050->roll = 0;
-  // MPU6050->yaw = 0;
-
+  MPU6050->roll += MPU6050->gyroscope_X * dt_seconds;
+  MPU6050->pitch += MPU6050->gyroscope_Y * dt_seconds;
+  MPU6050->yaw += MPU6050->gyroscope_Z * dt_seconds;
 }
