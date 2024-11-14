@@ -20,16 +20,22 @@ void timer0_setup() {
   OCR0B = 0;
 }
 
+/*
+* Timer 1 setup
+* One tick is 0.1us
+* Frequency = 50Hz
+* Period = 20ms
+*/
 void timer1_setup() {
   
   // Set output
   DDRB |= (1 << PB2) | (1 << PB1);
 
   TCCR1A = (1 << COM1A1) | (1 << COM1B1);
-  TCCR1B = (1 << WGM13) | (1 << CS11) | (1 << CS10);
+  TCCR1B = (1 << WGM13) | (1 << CS11);
 
-  ICR1 = 2500; // Max value of the counter before reset
+  ICR1 = 20000; // Max value of the counter before reset
 
-  OCR1A = 150; // Servo angle
+  OCR1A = 1500; // Servo angle (Default to 0 degrees)
   OCR1B = 0;   // Output unsued
 }

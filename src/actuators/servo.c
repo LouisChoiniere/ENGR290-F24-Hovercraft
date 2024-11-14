@@ -7,7 +7,9 @@ void SERVO_setPosition(int8_t angle) {
         angle = -90;
     }
 
-    double ticks = (double)187.5 + ((double)angle * (double)1.35);
+    // One tick of the timer is 0.1us
+    // 1500 ticks is the middle position
+    uint16_t ticks = 1500 + (angle * 10);
 
-    OCR1A = (int)ticks;
+    OCR1A = ticks;
 }
