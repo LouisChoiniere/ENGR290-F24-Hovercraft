@@ -3,12 +3,17 @@
 #include <Wire.h>
 #include <avr/io.h>
 
+#define CALIBRATION_DELAY 10
+
+// MPU6050 Address
 #define MPU6050_ADDR 0x68
 
+// MPU6050 Registers
 #define MPU6050_ACCELEROMETER_CONFIG_REGISTERS 0x1C
 #define MPU6050_GYROSCOPE_CONFIG_REGISTERS 0x1B
 #define MPU6050_FILTER_CONFIG_REGISTERS 0x1A
 
+// MPU6050 Configurations
 #define MPU6050_ACCELEROMETER_RANGE_2G 0x00
 #define MPU6050_ACCELEROMETER_RANGE_4G 0x08
 #define MPU6050_ACCELEROMETER_RANGE_8G 0x10
@@ -27,6 +32,7 @@
 #define MPU6050_FILTER_BW_10 0x05
 #define MPU6050_FILTER_BW_5 0x06
 
+// MPU6050 Division factors
 #define ACCEL_DIV_2G 16384
 #define ACCEL_DIV_4G 8192
 #define ACCEL_DIV_8G 4096
@@ -184,10 +190,11 @@ void MPU6050_ReadGyroscopeData(MPU6050_Struct *MPU6050) {
 void MPU6050_Calibrate(MPU6050_Struct *MPU6050, uint32_t time) {
   float sum_accel_X = 0, sum_accel_Y = 0, sum_accel_Z = 0;
   float sum_gyro_X = 0, sum_gyro_Y = 0, sum_gyro_Z = 0;
-  uint32_t samples = 0;
-  uint32_t start_time = millis();
+  
+  uint16_t desired_samples = time / CALIBRATION_DELAY;
+  uint16_t samples = 0;
 
-  while (millis() - start_time < time) {
+  while (samples < desired_samples) {
     MPU6050_ReadAcceleromterData(MPU6050);
     MPU6050_ReadGyroscopeData(MPU6050);
 
@@ -200,7 +207,7 @@ void MPU6050_Calibrate(MPU6050_Struct *MPU6050, uint32_t time) {
     sum_gyro_Z += MPU6050->gyroscope_Z;
 
     samples++;
-    delay(10); // Small delay to allow sensor to stabilize
+    _delay_ms(CALIBRATION_DELAY); // Small delay to allow sensor to stabilize
   }
 
   MPU6050->calibration_acceleraton_X = sum_accel_X / samples;
@@ -212,14 +219,11 @@ void MPU6050_Calibrate(MPU6050_Struct *MPU6050, uint32_t time) {
   MPU6050->calibration_gyroscope_Z = sum_gyro_Z / samples;
 }
 
-void MPU6050_ALL(MPU6050_Struct *MPU6050) {
+void MPU6050_ALL(MPU6050_Struct *MPU6050 , uint32_t dt_ms) {
   MPU6050_ReadAcceleromterData(MPU6050);
   MPU6050_ReadGyroscopeData(MPU6050);
 
-  uint64_t current_time = millis();
-  uint16_t dt = current_time - MPU6050->last_time;
-  float dt_seconds = dt / 1000.0;
-  MPU6050->last_time = current_time;
+  float dt_seconds = dt_ms / 1000.0;
 
   // MPU6050->velocity_X += MPU6050->acceleration_X * dt_seconds;
   // MPU6050->velocity_Y += MPU6050->acceleration_Y * dt_seconds;

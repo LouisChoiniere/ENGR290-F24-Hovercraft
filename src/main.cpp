@@ -6,6 +6,7 @@
 #include <HardwareSerial.h>
 #include <Wire.h>
 
+#include "actuators/fan.h"
 #include "actuators/servo.h"
 #include "sensors/GP2Y0A21YK.h"
 #include "sensors/MPU6050.h"
@@ -13,9 +14,16 @@
 #include "util/BatteryVoltage.h"
 #include "util/timer.h"
 
+// Settings
 #define ENABLE_BATTERY_CHECK 0
 
-#define GP2Y0A21YK_ADC_CHANNEL 0
+#define LIFT_FAN_SPEED 20
+
+
+// Pinout selections
+#define GP2Y0A21YK_ADC_CHANNEL 0 // P5
+#define LIFT_FAN_PORT 'A' // P4
+#define THRUST_FAN_PORT 'B' // P3
 
 MPU6050_Struct IMU;
 
@@ -35,6 +43,7 @@ void setup() {
   ADC_setup_channel(GP2Y0A21YK_ADC_CHANNEL);
 
   // Setup timers
+  timer0_setup();
   timer1_setup();
 
   // I2C setup and setup MPU6050
@@ -50,9 +59,14 @@ void setup() {
 
   // Batteries are almost empty do not start execution
   if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() <= 1) {
+    Serial.println("Batteries are empty");
+    Serial.flush();
     while (true)
       ;
   }
+
+  // Start lift fan
+  FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED);
 
   _delay_ms(100);
 }
@@ -60,17 +74,17 @@ void setup() {
 void loop() {
   counter++;
 
-  // Batteries are empty stop execution immediately
+  // Batteries are empty stop execution immediately and turn of fans
   if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() == 0) {
-    // TODO: Add code to stop the fans
-
+    FAN_setSpeed(LIFT_FAN_PORT, 0);
+    FAN_setSpeed(THRUST_FAN_PORT, 0);
     while (true)
       ;
   }
 
   double dist = GP2Y0A21YK_GetDistance(GP2Y0A21YK_ADC_CHANNEL);
 
-  MPU6050_ALL(&IMU);
+  MPU6050_ALL(&IMU, 5);
 
   if (counter % 100 == 0) {
     Serial.print("Accel (X, Y, Z): (");
