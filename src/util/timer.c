@@ -21,12 +21,12 @@ void timer0_setup() {
 }
 
 void timer1_setup() {
+  
   // Set output
   DDRB |= (1 << PB2) | (1 << PB1);
 
-  // Fast PMW, Non inverting output, 64 Prescaler
-  TCCR1A |= (1 << COM1A1) | (1 << COM1B1);
-  TCCR1B |= (1 << WGM13 | (1 << CS11) | (1 << CS10));
+  TCCR1A = (1 << COM1A1) | (1 << COM1B1);
+  TCCR1B = (1 << WGM13) | (1 << CS11) | (1 << CS10);
 
   ICR1 = 2500; // Max value of the counter before reset
 
