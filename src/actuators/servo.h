@@ -7,9 +7,9 @@ extern "C" {
 #endif
 
 /**
- * @brief Sets position of the servo in degress.
+ * @brief Sets position of the servo.
  *
- * @param angle Desired angle from -90 degress to +90 degress.
+ * @param angle In degress from -90 to +90.
  */
 void SERVO_setPosition(int8_t angle);
 
