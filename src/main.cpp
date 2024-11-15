@@ -21,8 +21,9 @@
 
 
 // Pinout selections
-#define GP2Y0A21YK_ADC_CHANNEL 0 // P5
-#define LIFT_FAN_PORT 'A' // P4
+#define IR_LEFT 0           // P5
+#define IR_RIGHT 1          // P8
+#define LIFT_FAN_PORT 'A'   // P4
 #define THRUST_FAN_PORT 'B' // P3
 
 MPU6050_Struct IMU;
@@ -40,7 +41,7 @@ void setup() {
   // ADC and set channels for GP2Y0A21YK
   ADC_setup();
   ADC_setup_channel(BATTERY_VOLTAGE_ADC_CHANNEL);
-  ADC_setup_channel(GP2Y0A21YK_ADC_CHANNEL);
+  ADC_setup_channel(IR_LEFT);
 
   // Setup timers
   timer0_setup();
@@ -52,7 +53,7 @@ void setup() {
   MPU6050_SetAccelerationSensitivity(&IMU, MPU6050_ACCELEROMETER_RANGE_4G);
   MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_1000);
   MPU6050_SetFilter(MPU6050_FILTER_BW_20);
-  MPU6050_Calibrate(&IMU, 5000);
+  MPU6050_Calibrate(&IMU, 1000);
 
   Serial.println("Start prechecks");
   Serial.flush();
@@ -65,12 +66,18 @@ void setup() {
       ;
   }
 
+  Serial.println("Startup procedure");
+  Serial.flush();
+
   // Start lift fan
   FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED);
 
   _delay_ms(100);
+
+  Serial.println("Start of control loop");
 }
 
+#define LOOP_INTERVAL_MS 5
 void loop() {
   counter++;
 
@@ -82,72 +89,16 @@ void loop() {
       ;
   }
 
-  double dist = GP2Y0A21YK_GetDistance(GP2Y0A21YK_ADC_CHANNEL);
 
-  MPU6050_ALL(&IMU, 5);
+  // ----- Data collection -----
+  MPU6050_ALL(&IMU, LOOP_INTERVAL_MS);
 
-  if (counter % 100 == 0) {
-    Serial.print("Accel (X, Y, Z): (");
-    Serial.print(IMU.acceleration_X);
-    Serial.print(", ");
-    Serial.print(IMU.acceleration_Y);
-    Serial.print(",");
-    Serial.print(IMU.acceleration_Z);
-    Serial.print(")");
+  double dist_left = GP2Y0A21YK_GetDistance(IR_LEFT);
+  double dist_right = GP2Y0A21YK_GetDistance(IR_RIGHT);
+  double dist_front = 0;
 
-    Serial.print("\tGyro (X, Y, Z): (");
-    Serial.print(IMU.gyroscope_X);
-    Serial.print(", ");
-    Serial.print(IMU.gyroscope_Y);
-    Serial.print(", ");
-    Serial.print(IMU.gyroscope_Z);
-    Serial.print(")");
+  // ----- Control System -----
 
-    // Serial.print("\tVelocity (X, Y, Z): (");
-    // Serial.print(IMU.velocity_X);
-    // Serial.print(", ");
-    // Serial.print(IMU.velocity_Y);
-    // Serial.print(", ");
-    // Serial.print(IMU.velocity_Z);
-    // Serial.print(")");
 
-    // Serial.print("\tPosition (X, Y, Z): (");
-    // Serial.print(IMU.position_X);
-    // Serial.print(", ");
-    // Serial.print(IMU.position_Y);
-    // Serial.print(", ");
-    // Serial.print(IMU.position_Z);
-    // Serial.print(")");
-
-    Serial.print("\tRoll: ");
-    Serial.print(IMU.roll);
-    Serial.print("\tPitch: ");
-    Serial.print(IMU.pitch);
-    Serial.print("\tYaw: ");
-    Serial.print(IMU.yaw);
-
-    Serial.print("\tDistance: ");
-    Serial.println(dist, 2);
-    Serial.println();
-    Serial.flush();
-  }
-
-  _delay_ms(5);
+  _delay_ms(LOOP_INTERVAL_MS);
 }
-
-// int main(void) {
-//   Serial.begin(115200); // Initialize serial communication
-//   while (!Serial)
-//     _delay_ms(10);
-//   Serial.println("Start of program");
-//   Serial.flush();
-
-//   mySetup();
-
-//   Serial.println("Start of Loop");
-//   Serial.flush();
-
-//   while (1) {
-//     myLoop();
-//   }
-// }
