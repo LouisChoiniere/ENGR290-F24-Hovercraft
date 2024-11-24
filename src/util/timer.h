@@ -1,5 +1,7 @@
 #pragma once
 
+#define TIMER1_INTERVAL_MS 20
+
 #ifdef __cplusplus
 extern "C" {
 #endif

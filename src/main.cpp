@@ -17,8 +17,8 @@
 // Settings
 #define ENABLE_BATTERY_CHECK 0
 
-#define LIFT_FAN_SPEED 20
-
+#define LIFT_FAN_SPEED 90
+#define THRUST_FAN_SPEED 50
 
 // Pinout selections
 #define IR_LEFT 0           // P5
@@ -30,10 +30,18 @@ MPU6050_Struct IMU;
 
 uint64_t counter = 0;
 
+volatile struct {
+  uint64_t time_ms;
+
+  uint8_t sample : 1;
+  uint8_t stop : 1;
+} flags;
+
 void setup() {
   Serial.begin(115200); // Initialize serial communication
   while (!Serial)
     _delay_ms(10);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   Serial.println("Setup");
   Serial.flush();
@@ -75,6 +83,15 @@ void setup() {
   _delay_ms(100);
 
   Serial.println("Start of control loop");
+  Serial.flush();
+
+  sei(); // Enable global interrupts
+}
+
+ISR(TIMER1_CAPT_vect) { // 50Hz, 20ms
+  flags.time_ms += 20;
+  flags.sample = 1;
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 #define LOOP_INTERVAL_MS 5
@@ -89,16 +106,17 @@ void loop() {
       ;
   }
 
-
   // ----- Data collection -----
-  MPU6050_ALL(&IMU, LOOP_INTERVAL_MS);
+  if (flags.sample) {
+    flags.sample = 0;
 
-  double dist_left = GP2Y0A21YK_GetDistance(IR_LEFT);
-  double dist_right = GP2Y0A21YK_GetDistance(IR_RIGHT);
-  double dist_front = 0;
+    MPU6050_ALL(&IMU, TIMER1_INTERVAL_MS);
+
+    double dist_left = GP2Y0A21YK_GetDistance(IR_LEFT);
+    double dist_right = GP2Y0A21YK_GetDistance(IR_RIGHT);
+    double dist_front = 0;
+
+  }
 
   // ----- Control System -----
-
-
-  _delay_ms(LOOP_INTERVAL_MS);
 }

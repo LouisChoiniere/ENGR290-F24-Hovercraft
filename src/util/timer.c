@@ -38,4 +38,6 @@ void timer1_setup() {
 
   OCR1A = 1500; // Servo angle (Default to 0 degrees)
   OCR1B = 0;   // Output unsued
+
+  TIMSK1 |= (1 << ICIE1); // Enable Timer/Counter1 Input Capture interrupt
 }
