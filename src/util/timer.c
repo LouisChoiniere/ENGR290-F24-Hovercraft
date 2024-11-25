@@ -31,12 +31,12 @@ void timer1_setup() {
   // Set output
   DDRB |= (1 << PB2) | (1 << PB1);
 
-  TCCR1A = (1 << COM1A1) | (1 << COM1B1);
-  TCCR1B = (1 << WGM13) | (1 << CS11);
+  TCCR1A = (1 << COM1A1) | (1 << COM1B1) | (1 << WGM11);
+  TCCR1B = (1 << WGM13) | (1 << WGM12) | (1 << CS11);
 
-  ICR1 = 20000; // Max value of the counter before reset
+  ICR1 = 40000; // Max value of the counter before reset
 
-  OCR1A = 1500; // Servo angle (Default to 0 degrees)
+  OCR1A = 3000; // Servo angle (Default to 0 degrees)
   OCR1B = 0;   // Output unsued
 
   TIMSK1 |= (1 << ICIE1); // Enable Timer/Counter1 Input Capture interrupt
