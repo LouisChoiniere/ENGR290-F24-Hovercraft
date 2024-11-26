@@ -27,15 +27,21 @@
 #define LIFT_FAN_PORT 'A'   // P4
 #define THRUST_FAN_PORT 'B' // P3
 
-MPU6050_Struct IMU;
 
 volatile uint8_t INT0_EDGE = 1;
 
 volatile struct {
-  uint64_t time_ms;
   uint8_t sample : 1;
   uint8_t stop : 1;
+
+  uint8_t turning : 1;
 } flags;
+
+volatile uint32_t time_ms;
+
+MPU6050_Struct IMU;
+
+float yawRef = 0;
 
 void setup() {
   Serial.begin(115200); // Initialize serial communication
@@ -93,7 +99,7 @@ void setup() {
 }
 
 ISR(TIMER1_CAPT_vect) { // 50Hz, 20ms
-  flags.time_ms += 20;
+  time_ms += 20;
   flags.sample = 1;
 }
 
@@ -109,6 +115,16 @@ ISR(INT0_vect) {
   }
 }
 
+void changeYawRef(float value) {
+  yawRef += value;
+
+  if (yawRef > 360) {
+    yawRef -= 360;
+  } else if (yawRef < 0) {
+    yawRef += 360;
+  }
+}
+
 void loop() {
   // ----- Stop execution -----
   if (flags.stop) {
@@ -119,7 +135,7 @@ void loop() {
       ;
   }
 
-  // ----- Data collection -----
+  // ----- Logic -----
   if (flags.sample) {
     flags.sample = 0;
 
@@ -129,13 +145,40 @@ void loop() {
     float dist_right = GP2Y0A21YK_GetDistance(IR_RIGHT);
     float dist_front = HCSR04_GetDistance();
 
+    float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
+    float delta_yaw = IMU.yaw - yawRef; // Positive is right, negative is left
+
+    // When turning, check if the front distance is less than 10cm and turn 90 degrees to the side with more distance
+    if (flags.turning && dist_front < 10) {
+     if (dist_side > 0) {
+       changeYawRef(90);
+     } else {
+       changeYawRef(-90);
+     }
+     flags.turning = 1;
+    }
+
+    // When the side distance is more than 20cm turn 90 degrees to the side with more distance
+    if (!flags.turning && abs(dist_side) > 20) {
+      if (dist_side > 0) {
+        changeYawRef(-90);
+      } else {
+        changeYawRef(90);
+      }
+      flags.turning = 1;
+    }
+
+
+
+
+
     // every 40ms trigger the HCSR04
-    if (flags.time_ms % 1000 == 0) {
+    if (time_ms % 40 == 0) {
       HCSR04_Trigger();
     }
 
     // Every 5s check battery voltage
-    if (flags.time_ms % 5000 == 0) {
+    if (time_ms % 5000 == 0) {
       // Batteries are empty stop execution immediately and turn of fans
       if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() == 0) {
         FAN_setSpeed(LIFT_FAN_PORT, 0);
@@ -146,7 +189,7 @@ void loop() {
     }
 
     // Every 1s print debug information
-    if (flags.time_ms % 1000 == 0) {
+    if (time_ms % 1000 == 0) {
       Serial.print("Distance: ");
       Serial.print(dist_front);
       Serial.print(",\tEcho lenght: ");
