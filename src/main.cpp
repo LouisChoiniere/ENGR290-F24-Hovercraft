@@ -162,8 +162,8 @@ void loop() {
     }
 
     // ----- End of turning logic -----
-    // Wait after turning to return to normal operation
-    if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS) {
+    if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS && fmod(IMU.yaw, 90) < 10) {
+    // if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS && IMU.yaw % 90 < 10) {
       flags.turning = 0;
     }
 
