@@ -18,8 +18,8 @@
 // Settings
 #define ENABLE_BATTERY_CHECK 1
 
-#define LIFT_FAN_SPEED 90
-#define THRUST_FAN_SPEED 50
+#define LIFT_FAN_SPEED 87
+#define THRUST_FAN_SPEED 80
 
 // Pinout selections
 #define IR_LEFT 0           // P5
@@ -33,11 +33,11 @@ volatile uint8_t INT0_EDGE = 1;
 volatile struct {
   uint8_t sample : 1;
   uint8_t stop : 1;
-
   uint8_t turning : 1;
 } flags;
 
 volatile uint32_t time_ms;
+volatile uint32_t delay1_ms;
 
 MPU6050_Struct IMU;
 
@@ -96,6 +96,9 @@ void setup() {
   EICRA |= (1 << ISC00); // Rising edge
   EIMSK |= (1 << INT0);  // Enable INT0
   sei();                 // Enable global interrupts
+
+  // Start thrust fan
+  FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
 }
 
 ISR(TIMER1_CAPT_vect) { // 50Hz, 20ms
@@ -146,7 +149,6 @@ void loop() {
     float dist_front = HCSR04_GetDistance();
 
     float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
-    float delta_yaw = IMU.yaw - yawRef; // Positive is right, negative is left
 
     // When turning, check if the front distance is less than 10cm and turn 90 degrees to the side with more distance
     if (flags.turning && dist_front < 10) {
@@ -168,9 +170,15 @@ void loop() {
       flags.turning = 1;
     }
 
+    // Offset the yaw angle to the reference angle
+    // Positive is right, negative is left
+    float delta_yaw = IMU.yaw - yawRef;
 
+    // P controller for the servo
+    float servo_angle = delta_yaw * 0.8;
+    // SERVO_setPosition((uint8_t)(-servo_angle));
 
-
+    SERVO_setPosition((uint8_t)IMU.yaw);
 
     // every 40ms trigger the HCSR04
     if (time_ms % 40 == 0) {
@@ -192,12 +200,15 @@ void loop() {
     if (time_ms % 1000 == 0) {
       Serial.print("Distance: ");
       Serial.print(dist_front);
-      Serial.print(",\tEcho lenght: ");
-      Serial.print(HCSR04_echo_length_us);
+      Serial.print(",\tLeft distance: ");
+      Serial.print(dist_left);
+      Serial.print(",\tRight distance: ");
+      Serial.print(dist_right);
+
+      Serial.print(",\tYaw: ");
+      Serial.print(IMU.yaw);
 
       Serial.println();
     }
   }
-
-  // ----- Control System -----
 }
