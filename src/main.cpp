@@ -15,19 +15,23 @@
 #include "util/BatteryVoltage.h"
 #include "util/timer.h"
 
-// Settings
+// ----- Settings -----
 #define ENABLE_BATTERY_CHECK 1
 
-#define LIFT_FAN_SPEED 87
-#define THRUST_FAN_SPEED 80
+#define LIFT_FAN_SPEED 90
+#define LIFT_FAN_SPEED_SLOW 85
+#define THRUST_FAN_SPEED 85
+#define THRUST_FAN_SPEED_SLOW 80
 
-// Pinout selections
+#define TURNING_TIME_MS 2500
+
+// ----- Pinout selections -----
 #define IR_LEFT 0           // P5
 #define IR_RIGHT 1          // P8
 #define LIFT_FAN_PORT 'A'   // P4
 #define THRUST_FAN_PORT 'B' // P3
 
-
+// ----- Global variables -----
 volatile uint8_t INT0_EDGE = 1;
 
 volatile struct {
@@ -37,7 +41,7 @@ volatile struct {
 } flags;
 
 volatile uint32_t time_ms;
-volatile uint32_t delay1_ms;
+uint32_t time_ms_turnning_start;
 
 MPU6050_Struct IMU;
 
@@ -84,9 +88,9 @@ void setup() {
   Serial.println("Startup procedure");
   Serial.flush();
 
-  // Start lift fan
+  // Start fans
   FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED);
-
+  FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
   _delay_ms(100);
 
   Serial.println("Start of control loop");
@@ -96,9 +100,6 @@ void setup() {
   EICRA |= (1 << ISC00); // Rising edge
   EIMSK |= (1 << INT0);  // Enable INT0
   sei();                 // Enable global interrupts
-
-  // Start thrust fan
-  FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
 }
 
 ISR(TIMER1_CAPT_vect) { // 50Hz, 20ms
@@ -118,15 +119,6 @@ ISR(INT0_vect) {
   }
 }
 
-void changeYawRef(float value) {
-  yawRef += value;
-
-  if (yawRef > 360) {
-    yawRef -= 360;
-  } else if (yawRef < 0) {
-    yawRef += 360;
-  }
-}
 
 void loop() {
   // ----- Stop execution -----
@@ -142,43 +134,60 @@ void loop() {
   if (flags.sample) {
     flags.sample = 0;
 
-    // Every 20ms read the IMU and IR sensors
+    // ----- Aquire data -----
     MPU6050_ALL(&IMU, TIMER1_INTERVAL_MS);
     float dist_left = GP2Y0A21YK_GetDistance(IR_LEFT);
     float dist_right = GP2Y0A21YK_GetDistance(IR_RIGHT);
     float dist_front = HCSR04_GetDistance();
 
-    float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
-
-    // When turning, check if the front distance is less than 10cm and turn 90 degrees to the side with more distance
-    if (flags.turning && dist_front < 10) {
-     if (dist_side > 0) {
-       changeYawRef(90);
-     } else {
-       changeYawRef(-90);
-     }
-     flags.turning = 1;
+    // ----- End of circuit -----
+    // ~ BETA ~
+    // Detect when the course is finished and stop execution
+    if (dist_left > 30 && dist_right > 30) {
+      flags.stop = 1;
     }
 
+    // ----- Turning logic -----
     // When the side distance is more than 20cm turn 90 degrees to the side with more distance
+    // start turning
+    // change the reference angle and set the turning flag
+    float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
     if (!flags.turning && abs(dist_side) > 20) {
       if (dist_side > 0) {
-        changeYawRef(-90);
+        yawRef += -90;
       } else {
-        changeYawRef(90);
+        yawRef += 90;
       }
       flags.turning = 1;
     }
 
-    // Offset the yaw angle to the reference angle
+    // ----- End of turning logic -----
+    // Wait after turning to return to normal operation
+    if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS) {
+      flags.turning = 0;
+    }
+
+    // ----- Servo angle control -----
+    // Offset of craft yaw to the reference angle
     // Positive is right, negative is left
     float delta_yaw = IMU.yaw - yawRef;
 
-    // P controller for the servo
-    float servo_angle = delta_yaw * 0.8;
-    // SERVO_setPosition((uint8_t)(-servo_angle));
+    // If the craft is not turning adjust angle to the side with more distance
+    if (!flags.turning) {
+      delta_yaw -= dist_side * 1;
+    }
 
-    SERVO_setPosition((uint8_t)IMU.yaw);
+    // P controller for the servo
+    float servo_angle = delta_yaw * 0.9;
+    uint8_t servo_angle_int = round(servo_angle);
+    SERVO_setPosition(servo_angle_int);
+
+    // ----- Fan speed control -----
+    // If the front distance is less than 5cm slow down the fans
+    if (dist_front < 5) {
+      FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_SLOW);
+      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_SLOW);
+    }
 
     // every 40ms trigger the HCSR04
     if (time_ms % 40 == 0) {
