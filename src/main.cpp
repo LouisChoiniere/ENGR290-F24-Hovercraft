@@ -8,28 +8,13 @@
 
 #include "actuators/fan.h"
 #include "actuators/servo.h"
+#include "config.h"
 #include "sensors/GP2Y0A21YK.h"
 #include "sensors/HCSR04.h"
 #include "sensors/MPU6050.h"
 #include "util/ADC.h"
 #include "util/BatteryVoltage.h"
 #include "util/timer.h"
-
-// ----- Settings -----
-#define ENABLE_BATTERY_CHECK 1
-
-#define LIFT_FAN_SPEED 90
-#define LIFT_FAN_SPEED_SLOW 85
-#define THRUST_FAN_SPEED 85
-#define THRUST_FAN_SPEED_SLOW 80
-
-#define TURNING_TIME_MS 2500
-
-// ----- Pinout selections -----
-#define IR_LEFT 0           // P5
-#define IR_RIGHT 1          // P8
-#define LIFT_FAN_PORT 'A'   // P4
-#define THRUST_FAN_PORT 'B' // P3
 
 // ----- Global variables -----
 volatile uint8_t INT0_EDGE = 1;
@@ -72,6 +57,10 @@ void setup() {
   MPU6050_SetAccelerationSensitivity(&IMU, MPU6050_ACCELEROMETER_RANGE_4G);
   MPU6050_SetGyroSensitivity(&IMU, MPU6050_GYROSCOPE_RANGE_1000);
   MPU6050_SetFilter(MPU6050_FILTER_BW_20);
+
+  Serial.println("Calibration of MPU6050");
+  Serial.flush();
+
   MPU6050_Calibrate(&IMU, 1000);
 
   Serial.println("Start prechecks");
@@ -79,7 +68,22 @@ void setup() {
 
   // Batteries are almost empty do not start execution
   if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() <= 1) {
-    Serial.println("Batteries are empty");
+    Serial.println("Batteries are too low to start run");
+    Serial.flush();
+    flags.stop = 1;
+    while (true)
+      ;
+  }
+
+  // Check if valid config
+  if (!ENABLE_BATTERY_CHECK && ENABLE_FANS) {
+    Serial.println("Invalid configuration");
+    Serial.flush();
+    flags.stop = 1;
+  }
+
+  if (flags.stop) {
+    Serial.println("Failled prechecks");
     Serial.flush();
     while (true)
       ;
@@ -88,9 +92,8 @@ void setup() {
   Serial.println("Startup procedure");
   Serial.flush();
 
-  // Start fans
+  // Start lift fan
   FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED);
-  FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
   _delay_ms(100);
 
   Serial.println("Start of control loop");
@@ -119,7 +122,6 @@ ISR(INT0_vect) {
   }
 }
 
-
 void loop() {
   // ----- Stop execution -----
   if (flags.stop) {
@@ -143,27 +145,28 @@ void loop() {
     // ----- End of circuit -----
     // ~ BETA ~
     // Detect when the course is finished and stop execution
-    if (dist_left > 30 && dist_right > 30) {
-      flags.stop = 1;
-    }
+    // if (dist_left > 30 && dist_right > 30) {
+    //   flags.stop = 1;
+    // }
 
     // ----- Turning logic -----
     // When the side distance is more than 20cm turn 90 degrees to the side with more distance
     // start turning
     // change the reference angle and set the turning flag
     float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
-    if (!flags.turning && abs(dist_side) > 20) {
+    if (!flags.turning && abs(dist_side) > TURNING_DISTANCE_THRESHOLD_CM) {
       if (dist_side > 0) {
-        yawRef += -90;
-      } else {
         yawRef += 90;
+      } else {
+        yawRef += -90;
       }
       flags.turning = 1;
+      time_ms_turnning_start = time_ms;
     }
 
     // ----- End of turning logic -----
-    if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS && fmod(IMU.yaw, 90) < 10) {
-    // if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS && IMU.yaw % 90 < 10) {
+    // if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS && fmod(IMU.yaw, 90) < ANGLE_THRESHOLD_END_TURN) {
+    if (flags.turning && time_ms - time_ms_turnning_start > TURNING_TIME_MS) {
       flags.turning = 0;
     }
 
@@ -178,15 +181,17 @@ void loop() {
     }
 
     // P controller for the servo
-    float servo_angle = delta_yaw * 0.9;
-    uint8_t servo_angle_int = round(servo_angle);
+    float servo_angle = delta_yaw * P_GAIN_SERVO;
+    int8_t servo_angle_int = round(servo_angle);
     SERVO_setPosition(servo_angle_int);
 
-    // ----- Fan speed control -----
-    // If the front distance is less than 5cm slow down the fans
-    if (dist_front < 5) {
-      FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_SLOW);
-      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_SLOW);
+    // ----- Thrust fan speed control -----
+    // If the front distance is more than 100cm set the thrust fan to high speed
+    // Goal start from standstill
+    if (dist_front > 100 || servo_angle > 25) {
+      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_HIGH);
+    } else {
+      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
     }
 
     // every 40ms trigger the HCSR04
@@ -198,8 +203,6 @@ void loop() {
     if (time_ms % 5000 == 0) {
       // Batteries are empty stop execution immediately and turn of fans
       if (ENABLE_BATTERY_CHECK && BatteryVoltage_GetState() == 0) {
-        FAN_setSpeed(LIFT_FAN_PORT, 0);
-        FAN_setSpeed(THRUST_FAN_PORT, 0);
         Serial.println("Batteries are empty");
         flags.stop = 1;
       }
@@ -216,6 +219,15 @@ void loop() {
 
       Serial.print(",\tYaw: ");
       Serial.print(IMU.yaw);
+
+      Serial.print(",\tYaw ref: ");
+      Serial.print(yawRef);
+
+      Serial.print(",\tServo angle: ");
+      Serial.print(servo_angle_int);
+
+      Serial.print(",\tTurning: ");
+      Serial.print(flags.turning);
 
       Serial.println();
     }
