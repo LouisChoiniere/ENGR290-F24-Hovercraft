@@ -16,7 +16,10 @@
 #define ANGLE_THRESHOLD_END_TURN 10
 #define TURNING_TIME_MS 1700
 
-#define P_GAIN_SERVO 0.85
+#define SERVO_P_GAIN 0.9
+#define SERVO_EXP_AMP 15
+#define SERVO_EXP_WDT 550
+#define SERVO_EXP_CNT 85
 
 // ----- Pinout selections -----
 #define IR_LEFT 0           // P5

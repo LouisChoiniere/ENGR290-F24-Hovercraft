@@ -181,7 +181,7 @@ void loop() {
     }
 
     // P controller for the servo
-    float servo_angle = delta_yaw * P_GAIN_SERVO;
+    float servo_angle = delta_yaw * SERVO_P_GAIN + SERVO_EXP_AMP * exp(-pow(delta_yaw - SERVO_EXP_CNT, 2) / SERVO_EXP_WDT);
     int8_t servo_angle_int = round(servo_angle);
     SERVO_setPosition(servo_angle_int);
 
