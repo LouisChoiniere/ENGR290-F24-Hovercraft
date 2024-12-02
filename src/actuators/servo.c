@@ -11,10 +11,10 @@ void SERVO_setPosition(int8_t angle) {
         return;
     }
 
-    if (angle > 90) {
-        angle = 90;
-    } else if (angle < -90) {
-        angle = -90;
+    if (angle > 93) {
+        angle = 93;
+    } else if (angle < -93) {
+        angle = -93;
     }
 
     // One tick of the timer is 0.5us
