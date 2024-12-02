@@ -30,6 +30,7 @@ volatile struct {
 volatile uint32_t time_ms = 0;
 uint32_t time_ms_turnning_start = 0;
 uint32_t time_ms_drop_start = 0;
+uint32_t time_ms_forward_start = 0;
 
 uint8_t consecutive_turns = 0;
 uint8_t time_ms_last_turn = 0;
@@ -182,33 +183,54 @@ void loop() {
       consecutive_turns++;
       time_ms_last_turn = time_ms;
 
-      // Drop
+      // Drop after first part of turn
       if (consecutive_turns % 2 == 1) {
         flags.dropped = 1;
         time_ms_drop_start = time_ms;
       }
-    }
 
-    // Resume
-    if (flags.dropped && time_ms - time_ms_drop_start > DROP_TIME_MS) {
-      flags.dropped = 0;
-      if (dist_front > FORWARD_DISTANCE_THRESHOLD_CM) {
+      // Forward after second part of turn
+      else if (consecutive_turns % 2 == 0) {
         flags.forward = 1;
+        time_ms_forward_start = time_ms;
       }
     }
 
-    // Forward
-    if (flags.forward && dist_front < FORWARD_DISTANCE_THRESHOLD_CM) {
-      flags.forward = 0;
+    // Stop drop condition
+    if (flags.dropped && time_ms - time_ms_drop_start > DROP_TIME_MS) {
+
+      flags.dropped = 0;
+      if (dist_front > FORWARD_DISTANCE_THRESHOLD_1_CM) {
+        flags.forward = 1;
+        time_ms_forward_start = time_ms;
+      }
+    }
+
+    // Stop forward condition
+    if (flags.forward) {
+
+      // After second part of turn
+      if (consecutive_turns % 2 == 0) {
+        if (time_ms - time_ms_forward_start > MIN_FORWARD_TIME_2_MS) {
+          flags.forward = 0;
+        }
+      }
+
+      // After first part of turn
+      else if (consecutive_turns % 2 == 1) {
+        if (dist_front < FORWARD_DISTANCE_THRESHOLD_1_CM) {
+          flags.forward = 0;
+        }
+      }
     }
 
     // ----- Servo angle control -----
     // If the craft is not turning adjust angle to the side with more distance
     if (!flags.turning && !flags.dropped && !flags.forward) {
-      delta_yaw -= dist_side * 1;
+      delta_yaw -= dist_side * 2;
     }
 
-    // P controller for the servo
+    // Controller for the servo
     float servo_angle = delta_yaw * SERVO_P_GAIN + SERVO_EXP_AMP * exp(-pow(delta_yaw - SERVO_EXP_CNT, 2) / SERVO_EXP_WDT);
     int8_t servo_angle_int = round(servo_angle);
     SERVO_setPosition(servo_angle_int);
@@ -218,6 +240,8 @@ void loop() {
 
     if (flags.dropped) {
       FAN_setSpeed(LIFT_FAN_PORT, 0);
+    } else if (flags.turning) {
+      FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_LOW);
     } else if (flags.forward) {
       FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_LOW);
       FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_HIGH);
