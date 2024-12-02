@@ -24,6 +24,7 @@ volatile struct {
   uint8_t stop : 1;
   uint8_t turning : 1;
   uint8_t dropped : 1;
+  uint8_t forward : 1;
 } flags;
 
 volatile uint32_t time_ms = 0;
@@ -149,9 +150,9 @@ void loop() {
 
     float delta_yaw = IMU.yaw - yawRef; // Positive is right, negative is left
 
-    if (time_ms - time_ms_last_turn > 1000) {
-      consecutive_turns = 0;
-    }
+    // if (time_ms - time_ms_last_turn > 2000) {
+    //   consecutive_turns = 0;
+    // }
 
     // ----- End of circuit -----
     // ~ BETA ~
@@ -161,42 +162,49 @@ void loop() {
     // }
 
     // ----- Turning logic -----
-    // When the side distance is more than 20cm turn 90 degrees to the side with more distance
-    // start turning
-    // change the reference angle and set the turning flag
     float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
 
     // Start turn
-    if (!flags.turning && !flags.dropped && abs(dist_side) > TURNING_DISTANCE_THRESHOLD_CM && consecutive_turns < 2) {
+    if (!flags.turning && !flags.dropped && !flags.forward && abs(dist_side) > TURNING_DISTANCE_THRESHOLD_CM) {
       if (dist_side > 0) {
         yawRef += 90;
       } else {
         yawRef += -90;
       }
+
       flags.turning = 1;
       time_ms_turnning_start = time_ms;
-
-      if (time_ms - time_ms_last_turn < 1000) {
-        consecutive_turns++;
-      }
     }
 
-    // Drop
-    if (flags.turning && !flags.dropped && time_ms - time_ms_turnning_start > MIN_TURNING_TIME_MS && abs(delta_yaw) < ANGLE_THRESHOLD_END_TURN) {
+    // End turn
+    if (flags.turning && time_ms - time_ms_turnning_start > MIN_TURNING_TIME_MS && abs(delta_yaw) < ANGLE_THRESHOLD_END_TURN) {
       flags.turning = 0;
-      flags.dropped = 1;
-      time_ms_drop_start = time_ms;
+      consecutive_turns++;
+      time_ms_last_turn = time_ms;
+
+      // Drop
+      if (consecutive_turns % 2 == 1) {
+        flags.dropped = 1;
+        time_ms_drop_start = time_ms;
+      }
     }
 
     // Resume
     if (flags.dropped && time_ms - time_ms_drop_start > DROP_TIME_MS) {
       flags.dropped = 0;
-      time_ms_last_turn = time_ms;
+      if (dist_front > FORWARD_DISTANCE_THRESHOLD_CM) {
+        flags.forward = 1;
+      }
+    }
+
+    // Forward
+    if (flags.forward && dist_front < FORWARD_DISTANCE_THRESHOLD_CM) {
+      flags.forward = 0;
     }
 
     // ----- Servo angle control -----
     // If the craft is not turning adjust angle to the side with more distance
-    if (!flags.turning) {
+    if (!flags.turning && !flags.dropped && !flags.forward) {
       delta_yaw -= dist_side * 1;
     }
 
@@ -206,16 +214,13 @@ void loop() {
     SERVO_setPosition(servo_angle_int);
 
     // ----- Fan speed control -----
-    // If the front distance is more than 100cm set the thrust fan to high speed
-    // Goal start from standstill
-    if (dist_front > 100 || servo_angle > 25) {
-      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_HIGH);
-    } else {
-      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
-    }
+    FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED);
 
     if (flags.dropped) {
-      FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_SLOW);
+      FAN_setSpeed(LIFT_FAN_PORT, 0);
+    } else if (flags.forward) {
+      FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED_LOW);
+      FAN_setSpeed(THRUST_FAN_PORT, THRUST_FAN_SPEED_HIGH);
     } else {
       FAN_setSpeed(LIFT_FAN_PORT, LIFT_FAN_SPEED);
     }
