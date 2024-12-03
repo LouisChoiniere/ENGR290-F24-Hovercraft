@@ -154,7 +154,7 @@ void loop() {
     float dist_side = dist_left - dist_right; // Positive is right from center, negative is left from center
 
     // Start turn
-    if (!flags.turning && !flags.dropped && !flags.creep && abs(dist_side) > TURNING_DISTANCE_THRESHOLD_CM) {
+    if (!flags.turning && !flags.dropped && !flags.creep && abs(dist_side) > TURNING_DISTANCE_THRESHOLD_CM && dist_front < TRUNING_FRONT_DISTANCE_THRESHOLD_CM) {
       if (dist_side > 0) {
         yawRef += 90;
       } else {
@@ -209,7 +209,14 @@ void loop() {
     }
 
     // Controller for the servo
-    float servo_angle = delta_yaw * SERVO_P_GAIN + SERVO_EXP_AMP * exp(-pow(delta_yaw - SERVO_EXP_CNT, 2) / SERVO_EXP_WDT);
+    float servo_p_gain = SERVO_P_GAIN;
+    if (delta_yaw > 0) {
+      servo_p_gain -= 0.5;
+    } else {
+      servo_p_gain += 1.2;
+    }
+
+    float servo_angle = delta_yaw * servo_p_gain + SERVO_EXP_AMP * exp(-pow(delta_yaw - SERVO_EXP_CNT, 2) / SERVO_EXP_WDT);
     int8_t servo_angle_int = round(servo_angle);
     SERVO_setPosition(servo_angle_int);
 

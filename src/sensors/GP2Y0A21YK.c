@@ -10,8 +10,8 @@ float GP2Y0A21YK_GetDistance(uint8_t channel) {
   float volts = ADC_read_voltage(channel);
   float distance = (float)29.988 * (float)pow(volts, (float)-1.173);
 
-  if (distance > 50) {
-    distance = 50;
+  if (distance > 55) {
+    distance = 55;
   }
 
   return distance;
