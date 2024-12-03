@@ -2,7 +2,7 @@
 
 #include "config.h"
 
-#define OFFSET_DEGREES -6
+#define OFFSET_DEGREES -10
 #define OFFSET_TICKS OFFSET_DEGREES*20
 
 void SERVO_setPosition(int8_t angle) {

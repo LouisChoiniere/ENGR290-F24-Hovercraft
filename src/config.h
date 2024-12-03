@@ -7,7 +7,7 @@
 #define ENABLE_DEBUG 0
 
 #define LIFT_FAN_SPEED 97
-#define LIFT_FAN_SPEED_LOW 80
+#define LIFT_FAN_SPEED_LOW 85
 
 #define THRUST_FAN_SPEED_HIGH 100
 #define THRUST_FAN_SPEED 85
@@ -16,18 +16,18 @@
 // ----- Control system -----
 
 // Start turn
-#define TURNING_DISTANCE_THRESHOLD_CM 45
+#define TURNING_DISTANCE_THRESHOLD_CM 35
 
 // Drop
 #define ANGLE_THRESHOLD_END_TURN 40
 #define MIN_TURNING_TIME_MS 20
 
 // Resume
-#define DROP_TIME_MS 500
+#define DROP_TIME_MS 750
 
 // Forward
-#define FORWARD_DISTANCE_THRESHOLD_1_CM 25
-#define MIN_FORWARD_TIME_2_MS 1000
+#define FORWARD_DISTANCE_THRESHOLD_1_CM 30
+#define MIN_FORWARD_TIME_2_MS 3000
 
 // Servo
 #define SERVO_P_GAIN 0.9
